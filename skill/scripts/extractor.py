@@ -12,7 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from .types import AttentionPolicy, Edge, Upgrade, Value
+from .types import AttentionPolicy, Value
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
@@ -21,7 +21,54 @@ def _load_prompt(name: str) -> str:
     return (PROMPTS_DIR / f"{name}.md").read_text()
 
 
-def _build_extraction_messages(context: str) -> list[dict]:
+def _parse_json(text: str) -> Optional[dict]:
+    """Parse JSON from LLM response, tolerating markdown wrapping."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start == -1 or end == 0:
+            return None
+        try:
+            return json.loads(text[start:end])
+        except json.JSONDecodeError:
+            return None
+
+
+def _format_value_for_prompt(v: Value) -> dict:
+    """Serialize a value for inclusion in LLM prompts."""
+    return {"id": v.id, "title": v.title, "policies": [p.text for p in v.policies]}
+
+
+def _build_comparison_messages(
+    prompt_name: str, new_value: Value, existing: list[Value]
+) -> list[dict]:
+    """Build messages that compare a new value against existing ones.
+
+    Used by both duplicate checking and upgrade detection.
+    """
+    system = _load_prompt(prompt_name)
+    existing_text = json.dumps(
+        [_format_value_for_prompt(v) for v in existing], indent=2
+    )
+    user_content = (
+        f"## New value\n"
+        f"Title: {new_value.title}\n"
+        f"Policies:\n"
+        + "\n".join(f"- {p}" for p in new_value.policies)
+        + f"\n\n## Existing values\n{existing_text}"
+    )
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user_content},
+    ]
+
+
+# -- Public API: message builders --
+
+def extraction_messages(context: str) -> list[dict]:
+    """Build messages for value extraction."""
     system = _load_prompt("extract_value")
     return [
         {"role": "system", "content": system},
@@ -29,55 +76,22 @@ def _build_extraction_messages(context: str) -> list[dict]:
     ]
 
 
-def _build_duplicate_check_messages(
-    new_value: Value, existing: list[Value]
-) -> list[dict]:
-    system = _load_prompt("check_duplicate")
-    existing_text = json.dumps(
-        [{"id": v.id, "title": v.title, "policies": [p.text for p in v.policies]}
-         for v in existing],
-        indent=2,
-    )
-    user_content = (
-        f"## New value\n"
-        f"Title: {new_value.title}\n"
-        f"Policies:\n"
-        + "\n".join(f"- {p}" for p in new_value.policies)
-        + f"\n\n## Existing values\n{existing_text}"
-    )
-    return [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user_content},
-    ]
+def duplicate_check_messages(new_value: Value, existing: list[Value]) -> list[dict]:
+    """Build messages for duplicate checking."""
+    return _build_comparison_messages("check_duplicate", new_value, existing)
 
 
-def _build_upgrade_detection_messages(
-    new_value: Value, existing: list[Value]
-) -> list[dict]:
-    system = _load_prompt("detect_upgrade")
-    existing_text = json.dumps(
-        [{"id": v.id, "title": v.title, "policies": [p.text for p in v.policies]}
-         for v in existing],
-        indent=2,
-    )
-    user_content = (
-        f"## New value\n"
-        f"Title: {new_value.title}\n"
-        f"Policies:\n"
-        + "\n".join(f"- {p}" for p in new_value.policies)
-        + f"\n\n## Existing values\n{existing_text}"
-    )
-    return [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user_content},
-    ]
+def upgrade_detection_messages(new_value: Value, existing: list[Value]) -> list[dict]:
+    """Build messages for upgrade detection."""
+    return _build_comparison_messages("detect_upgrade", new_value, existing)
 
 
-def _build_render_messages(
+def render_summary_messages(
     top_values: list[Value],
-    upgrades: list[Upgrade],
+    upgrades: list,
     total_count: int,
 ) -> list[dict]:
+    """Build messages for USER.md summary rendering."""
     system = _load_prompt("render_user_summary")
     values_text = ""
     for v in top_values:
@@ -103,22 +117,12 @@ def _build_render_messages(
     ]
 
 
+# -- Public API: response parsers --
+
 def parse_extraction_response(response_text: str) -> Optional[Value]:
     """Parse the LLM's extraction response into a Value, or None if not found."""
-    try:
-        data = json.loads(response_text)
-    except json.JSONDecodeError:
-        # Try to find JSON in the response
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            return None
-        try:
-            data = json.loads(response_text[start:end])
-        except json.JSONDecodeError:
-            return None
-
-    if not data.get("found", False):
+    data = _parse_json(response_text)
+    if data is None or not data.get("found", False):
         return None
 
     return Value(
@@ -131,18 +135,9 @@ def parse_extraction_response(response_text: str) -> Optional[Value]:
 
 def parse_duplicate_check_response(response_text: str) -> Optional[str]:
     """Parse duplicate check. Returns the duplicate_of id, or None if not duplicate."""
-    try:
-        data = json.loads(response_text)
-    except json.JSONDecodeError:
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            return None
-        try:
-            data = json.loads(response_text[start:end])
-        except json.JSONDecodeError:
-            return None
-
+    data = _parse_json(response_text)
+    if data is None:
+        return None
     if data.get("is_duplicate", False):
         return data.get("duplicate_of")
     return None
@@ -150,24 +145,22 @@ def parse_duplicate_check_response(response_text: str) -> Optional[str]:
 
 def parse_upgrade_response(
     response_text: str, new_value_id: str
-) -> list[tuple[Edge, Upgrade]]:
-    """Parse upgrade detection response into Edge + Upgrade pairs."""
-    try:
-        data = json.loads(response_text)
-    except json.JSONDecodeError:
-        start = response_text.find("{")
-        end = response_text.rfind("}") + 1
-        if start == -1 or end == 0:
-            return []
-        try:
-            data = json.loads(response_text[start:end])
-        except json.JSONDecodeError:
-            return []
+) -> list[tuple]:
+    """Parse upgrade detection response into (Edge, Upgrade) pairs.
+
+    Only accepts A or B grade upgrades. Returns a list of
+    (edge_dict, upgrade_dict) tuples — the caller constructs the types
+    to avoid circular imports.
+    """
+    from .types import Edge, Upgrade
+
+    data = _parse_json(response_text)
+    if data is None:
+        return []
 
     results = []
     for u in data.get("upgrades", []):
         likelihood = u.get("likelihood", "C")
-        # Only accept A or B grade upgrades
         if likelihood not in ("A", "B"):
             continue
 
@@ -188,31 +181,3 @@ def parse_upgrade_response(
         results.append((edge, upgrade))
 
     return results
-
-
-# -- Message builders are the public API. --
-# The actual LLM calls happen in the tool bridge, which knows
-# how to talk to whatever model Hermes is currently using.
-
-def extraction_messages(context: str) -> list[dict]:
-    """Build messages for value extraction."""
-    return _build_extraction_messages(context)
-
-
-def duplicate_check_messages(new_value: Value, existing: list[Value]) -> list[dict]:
-    """Build messages for duplicate checking."""
-    return _build_duplicate_check_messages(new_value, existing)
-
-
-def upgrade_detection_messages(new_value: Value, existing: list[Value]) -> list[dict]:
-    """Build messages for upgrade detection."""
-    return _build_upgrade_detection_messages(new_value, existing)
-
-
-def render_summary_messages(
-    top_values: list[Value],
-    upgrades: list[Upgrade],
-    total_count: int,
-) -> list[dict]:
-    """Build messages for USER.md summary rendering."""
-    return _build_render_messages(top_values, upgrades, total_count)

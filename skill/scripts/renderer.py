@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Optional
 
 from .store import ValueStore
-from .types import Upgrade, Value
 
 HERMES_HOME = Path.home() / ".hermes"
 USER_MD_PATH = HERMES_HOME / "USER.md"
@@ -40,37 +39,48 @@ def render_deterministic(store: ValueStore) -> str:
     return "Sources of meaning: " + ". ".join(parts) + "."
 
 
-def inject_into_user_md(values_summary: str) -> None:
+def _sanitize_summary(summary: str) -> str:
+    """Strip marker strings from summary to prevent injection."""
+    return summary.replace(VALUES_SECTION_START, "").replace(VALUES_SECTION_END, "")
+
+
+def inject_into_user_md(
+    values_summary: str,
+    user_md_path: Path = USER_MD_PATH,
+) -> None:
     """Write the values summary into USER.md between marker comments.
 
     Preserves any existing USER.md content outside the markers.
     If USER.md doesn't exist, creates it with just the values section.
     If markers don't exist, appends the section at the end.
     """
+    values_summary = _sanitize_summary(values_summary)
     if not values_summary.strip():
         return
 
     section = f"{VALUES_SECTION_START}\n{values_summary}\n{VALUES_SECTION_END}"
 
-    if USER_MD_PATH.exists():
-        content = USER_MD_PATH.read_text()
+    if user_md_path.exists():
+        content = user_md_path.read_text()
 
         if VALUES_SECTION_START in content and VALUES_SECTION_END in content:
-            # Replace existing section
             start_idx = content.index(VALUES_SECTION_START)
             end_idx = content.index(VALUES_SECTION_END) + len(VALUES_SECTION_END)
             content = content[:start_idx] + section + content[end_idx:]
         else:
-            # Append section
             content = content.rstrip() + "\n\n" + section + "\n"
     else:
-        HERMES_HOME.mkdir(parents=True, exist_ok=True)
+        user_md_path.parent.mkdir(parents=True, exist_ok=True)
         content = section + "\n"
 
-    USER_MD_PATH.write_text(content)
+    user_md_path.write_text(content)
 
 
-def update_user_md(store: ValueStore, llm_summary: Optional[str] = None) -> str:
+def update_user_md(
+    store: ValueStore,
+    llm_summary: Optional[str] = None,
+    user_md_path: Path = USER_MD_PATH,
+) -> str:
     """Update USER.md with the current value landscape.
 
     If llm_summary is provided (from the render prompt), uses that.
@@ -79,5 +89,5 @@ def update_user_md(store: ValueStore, llm_summary: Optional[str] = None) -> str:
     Returns the summary that was written.
     """
     summary = llm_summary if llm_summary else render_deterministic(store)
-    inject_into_user_md(summary)
+    inject_into_user_md(summary, user_md_path=user_md_path)
     return summary

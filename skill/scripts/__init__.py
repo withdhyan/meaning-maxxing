@@ -11,6 +11,7 @@ from .extractor import (
     parse_duplicate_check_response,
     parse_upgrade_response,
 )
+from .tool import ValuesTool
 
 __all__ = [
     "AttentionPolicy",
@@ -19,6 +20,7 @@ __all__ = [
     "Upgrade",
     "Value",
     "ValueStore",
+    "ValuesTool",
     "extraction_messages",
     "duplicate_check_messages",
     "upgrade_detection_messages",

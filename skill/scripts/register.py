@@ -16,8 +16,6 @@ Or manually:
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 from typing import Any
 
@@ -45,21 +43,14 @@ def register_values_tool() -> bool:
     values_tool = ValuesTool(store=ValueStore())
 
     def check_fn() -> bool:
-        """Always available — no external dependencies required."""
         return True
 
     async def handler(arguments: dict[str, Any], **kwargs: Any) -> str:
-        """Tool handler that Hermes calls when the LLM invokes 'values'.
-
-        Hermes passes an auxiliary_client in kwargs for making LLM calls.
-        We wrap it into the llm_call interface our tool expects.
-        """
         aux_client = kwargs.get("auxiliary_client")
 
         async def llm_call(messages: list[dict]) -> str:
             if aux_client is None:
                 raise RuntimeError("No auxiliary client available")
-            # Hermes auxiliary_client.chat() returns the response text
             return await aux_client.chat(messages=messages, temperature=0.2)
 
         return await values_tool.handle(
@@ -80,7 +71,7 @@ def register_values_tool() -> bool:
         check_fn=check_fn,
         async_=True,
         description=TOOL_DESCRIPTION,
-        emoji="💎",
+        emoji="\U0001f48e",
     )
 
     logger.info("Values tool registered with Hermes ToolRegistry")
