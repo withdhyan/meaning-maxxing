@@ -4,7 +4,10 @@ A [Hermes Agent](https://github.com/NousResearch/hermes-agent) skill that
 extracts your deeply held values from conversation and writes them to USER.md.
 
 Built on the [Meaning Alignment Institute](https://meaningalignment.org)'s
-[value-tools](https://github.com/meaningalignment/values-tools) methodology.
+methodology — specifically their work on [Democratic Fine-Tuning](https://arxiv.org/abs/2404.10636),
+[values-tools](https://github.com/meaningalignment/values-tools), and Joe
+Edelman's philosophical framework on [values, preferences, and meaningful
+choice](https://philarchive.org/rec/EDEVPA).
 
 ## What It Does
 
@@ -13,15 +16,23 @@ difficult choice, something that moved you, a person you admire, a suggestion
 you push back on. It silently extracts **sources of meaning** and writes them
 to your profile.
 
-Values are expressed as **attention policies** — the MAI's core primitive:
+A source of meaning is not a preference, a goal, a moral principle, a norm,
+or an ideological commitment. It is a way of living that **opens a space of
+possibility** — attending to it is meaningful in itself. MAI's key insight:
+values defined this way tend to converge across political and cultural divides,
+even when preferences conflict.
+
+Sources of meaning are expressed as **attention policies** — the atomic unit
+of MAI's framework:
 
 > **Generative Honesty**
 > - MOMENTS where telling a difficult truth opens a new possibility
 > - SIGNS that someone is ready to hear what they need to hear
 > - WAYS of speaking that make hard truths land as gifts rather than weapons
 
-These aren't preferences ("I like dark mode") or goals ("I want a promotion").
-They're descriptions of what you actually attend to when something matters.
+Each policy starts with a CAPITALIZED plural noun and a qualifying phrase.
+Each is graded during extraction: merely normative or instrumental policies
+are discarded; only genuinely meaningful ones are kept.
 
 ## Time Well Spent
 
@@ -39,7 +50,9 @@ feel understood, not studied.
 skill/
 ├── SKILL.md                    # Teaches Hermes the methodology
 ├── prompts/
-│   └── extract_value.md        # Value articulation prompt
+│   └── extract_value.md        # Value articulation prompt (with policy grading)
+├── references/
+│   └── LINEAGE.md              # MAI philosophy, papers, concepts, results
 └── scripts/
     ├── __init__.py
     └── values.py               # Everything: storage, extraction, USER.md
@@ -112,12 +125,31 @@ python -m pytest tests/ -v
 
 ## Lineage
 
-- **[Democratic Fine-Tuning](https://meaningalignment.org)** (MAI) — values as
-  attention policies, funded by OpenAI
-- **[values-tools](https://github.com/meaningalignment/values-tools)** (MAI) —
-  TypeScript library we draw methodology from
-- **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** (Nous Research) —
-  the agent framework
+This skill stands on specific intellectual foundations. See
+[`skill/references/LINEAGE.md`](skill/references/LINEAGE.md) for the full
+account.
+
+**Philosophy**: Joe Edelman's work on values as attention policies arising
+from constitutive judgments — descended from Charles Taylor, Ruth Chang,
+Amartya Sen, David Velleman. Paper: ["Values, Preferences, Meaningful
+Choice"](https://philarchive.org/rec/EDEVPA) (PhilArchive).
+
+**Methodology**: The Meaning Alignment Institute's Democratic Fine-Tuning
+pipeline — elicit sources of meaning from diverse populations, build moral
+graphs through democratic wisdom-voting, fine-tune models on convergent
+values. Paper: ["What are human values, and how do we align AI to
+them?"](https://arxiv.org/abs/2404.10636) (arXiv). Funded by OpenAI.
+500 participants, 97% articulation rate, 89% fairness rating.
+
+**Implementation**: We take MAI's value articulation methodology (attention
+policies, the grading system, the zooming techniques) and apply it to
+individual user modeling in a conversational agent rather than collective
+democratic deliberation. The extraction prompt draws directly from MAI's
+`articulate-value-prompt.md` and `generate-value-prompt-context.md`.
+
+**Platform**: [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+(Nous Research) — the agent framework with skill system, USER.md persistence,
+and tool registry.
 
 ## License
 
