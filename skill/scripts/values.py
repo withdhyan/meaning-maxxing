@@ -12,13 +12,16 @@ import uuid
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 VALUES_PATH = Path.home() / ".hermes" / "values" / "values.json"
 USER_MD_PATH = Path.home() / ".hermes" / "USER.md"
 SECTION_START = "<!-- values-start -->"
 SECTION_END = "<!-- values-end -->"
+
+MAX_SOURCE_CONTEXT = 500
+MAX_DISPLAY_POLICIES = 4
 
 
 # -- Data --
@@ -30,7 +33,7 @@ def make_value(title: str, policies: list[str], description: str = "",
         "title": title,
         "policies": policies,
         "description": description,
-        "source_context": source_context[:500],
+        "source_context": source_context[:MAX_SOURCE_CONTEXT],
         "created_at": time.time(),
     }
 
@@ -50,37 +53,43 @@ def save_values(values: list[dict], path: Path = VALUES_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     data = json.dumps(values, indent=2)
     fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    closed = False
     try:
         os.write(fd, data.encode())
+    finally:
         os.close(fd)
-        closed = True
+    try:
         os.replace(tmp, path)
     except BaseException:
-        if not closed:
-            os.close(fd)
         if os.path.exists(tmp):
             os.unlink(tmp)
         raise
 
 
-def add_value(value: dict, path: Path = VALUES_PATH) -> None:
+def _update_values(
+    path: Path, fn: Callable[[list[dict]], list[dict]]
+) -> list[dict]:
+    """Load values, apply mutation fn, save. Returns the mutated list."""
     values = load_values(path)
-    values.append(value)
-    save_values(values, path)
+    new_values = fn(values)
+    save_values(new_values, path)
+    return new_values
+
+
+def add_value(value: dict, path: Path = VALUES_PATH) -> None:
+    _update_values(path, lambda vs: vs + [value])
 
 
 def remove_value(value_id: str, path: Path = VALUES_PATH) -> Optional[dict]:
     values = load_values(path)
     removed = None
-    new_values = []
+    kept = []
     for v in values:
-        if v["id"] == value_id:
+        if v["id"] == value_id and removed is None:
             removed = v
         else:
-            new_values.append(v)
+            kept.append(v)
     if removed:
-        save_values(new_values, path)
+        save_values(kept, path)
     return removed
 
 
@@ -99,9 +108,18 @@ def parse_extraction(response_text: str) -> Optional[dict]:
     data = _parse_json(response_text)
     if data is None or not data.get("found", False):
         return None
+
+    title = data.get("title")
+    policies = data.get("policies")
+
+    if not title or not isinstance(title, str):
+        return None
+    if not policies or not isinstance(policies, list) or len(policies) == 0:
+        return None
+
     return make_value(
-        title=data["title"],
-        policies=data["policies"],
+        title=title,
+        policies=[str(p) for p in policies],
         description=data.get("description", ""),
     )
 
@@ -129,7 +147,7 @@ def render_values_section(values: list[dict]) -> str:
     lines = []
     for v in values:
         lines.append(f"**{v['title']}**: "
-                     + "; ".join(v["policies"][:4]))
+                     + "; ".join(v["policies"][:MAX_DISPLAY_POLICIES]))
     return "\n".join(lines)
 
 

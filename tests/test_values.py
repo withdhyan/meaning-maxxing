@@ -21,6 +21,7 @@ from scripts.values import (
     format_values,
     SECTION_START,
     SECTION_END,
+    MAX_DISPLAY_POLICIES,
 )
 
 
@@ -220,3 +221,77 @@ def test_format_values():
     assert "WAYS of being" in result
     assert "I am being." in result
     assert "1 sources" in result
+
+
+# -- Edge cases: parse_extraction validation --
+
+def test_parse_extraction_null_title():
+    resp = json.dumps({"found": True, "title": None, "policies": ["WAYS"]})
+    assert parse_extraction(resp) is None
+
+
+def test_parse_extraction_empty_title():
+    resp = json.dumps({"found": True, "title": "", "policies": ["WAYS"]})
+    assert parse_extraction(resp) is None
+
+
+def test_parse_extraction_empty_policies():
+    resp = json.dumps({"found": True, "title": "Test", "policies": []})
+    assert parse_extraction(resp) is None
+
+
+def test_parse_extraction_null_policies():
+    resp = json.dumps({"found": True, "title": "Test", "policies": None})
+    assert parse_extraction(resp) is None
+
+
+def test_parse_extraction_missing_fields():
+    resp = json.dumps({"found": True})
+    assert parse_extraction(resp) is None
+
+
+# -- Edge cases: storage --
+
+def test_add_value_multiple():
+    path = _tmp_path()
+    save_values([], path)
+    for name in ["Alpha", "Beta", "Gamma"]:
+        add_value(make_value(name, [f"WAYS of {name}"]), path)
+    loaded = load_values(path)
+    assert len(loaded) == 3
+    assert [v["title"] for v in loaded] == ["Alpha", "Beta", "Gamma"]
+
+
+def test_remove_value_preserves_others():
+    path = _tmp_path()
+    v1 = make_value("Keep", ["WAYS"])
+    v2 = make_value("Remove", ["SIGNS"])
+    v3 = make_value("Also Keep", ["MOMENTS"])
+    save_values([v1, v2, v3], path)
+    remove_value(v2["id"], path)
+    loaded = load_values(path)
+    assert len(loaded) == 2
+    assert loaded[0]["title"] == "Keep"
+    assert loaded[1]["title"] == "Also Keep"
+
+
+def test_remove_does_not_save_when_nothing_removed():
+    path = _tmp_path()
+    save_values([], path)
+    mtime_before = path.stat().st_mtime_ns
+    remove_value("nonexistent", path)
+    # File should not have been rewritten
+    mtime_after = path.stat().st_mtime_ns
+    assert mtime_before == mtime_after
+
+
+# -- Edge cases: render --
+
+def test_render_truncates_policies():
+    policies = [f"POLICY {i}" for i in range(8)]
+    values = [make_value("Many", policies)]
+    section = render_values_section(values)
+    # Should only include MAX_DISPLAY_POLICIES policies
+    for i in range(MAX_DISPLAY_POLICIES):
+        assert f"POLICY {i}" in section
+    assert f"POLICY {MAX_DISPLAY_POLICIES}" not in section
