@@ -117,6 +117,25 @@ def test_extraction_messages():
     assert "source of meaning" in msgs[0]["content"].lower()
 
 
+def test_extraction_messages_no_existing():
+    msgs = extraction_messages("Hello.", existing_values=None)
+    assert "Existing values" not in msgs[1]["content"]
+
+
+def test_extraction_messages_with_existing():
+    existing = [make_value("Quiet Stewardship", ["MOMENTS of care", "SIGNS of tending"])]
+    msgs = extraction_messages("User said something.", existing_values=existing)
+    content = msgs[1]["content"]
+    assert "Existing values" in content
+    assert "Quiet Stewardship" in content
+    assert "MOMENTS of care" in content
+
+
+def test_extraction_messages_dedup_section_in_prompt():
+    msgs = extraction_messages("User said something.")
+    assert "deduplication" in msgs[0]["content"].lower()
+
+
 def test_parse_extraction_found():
     resp = json.dumps({
         "found": True,

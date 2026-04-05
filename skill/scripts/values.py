@@ -95,11 +95,18 @@ def remove_value(value_id: str, path: Path = VALUES_PATH) -> Optional[dict]:
 
 # -- LLM messages --
 
-def extraction_messages(context: str) -> list[dict]:
+def extraction_messages(context: str,
+                        existing_values: list[dict] | None = None) -> list[dict]:
     system = (PROMPTS_DIR / "extract_value.md").read_text()
+    user_content = context
+    if existing_values:
+        user_content += "\n\n---\nExisting values (do not duplicate):\n"
+        for v in existing_values:
+            policies = "; ".join(v["policies"][:MAX_DISPLAY_POLICIES])
+            user_content += f"- {v['title']}: {policies}\n"
     return [
         {"role": "system", "content": system},
-        {"role": "user", "content": context},
+        {"role": "user", "content": user_content},
     ]
 
 

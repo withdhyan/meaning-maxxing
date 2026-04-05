@@ -65,6 +65,18 @@ If the passage starts at the surface, zoom toward the source of meaning:
   "He was so *deliberate* about including everyone" — *deliberate* points
   toward intentional inclusion.
 
+## Deduplication
+
+If existing values are listed after the conversation passage, check whether
+the new source of meaning substantially overlaps with any of them. Two values
+overlap if:
+
+- Someone following one set of policies would attend to the same things as the other
+- A person holding one would feel the other fully captures what they cared about
+
+If there is substantial overlap, respond `{"found": false}`. Only extract
+genuinely **distinct** sources of meaning.
+
 ## Response
 
 Valid JSON only. No commentary outside the JSON.
