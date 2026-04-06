@@ -186,6 +186,26 @@ def write_to_user_md(values: list[dict],
 
 # -- Display --
 
+# -- Emission --
+
+def anonymize_value(value: dict) -> dict:
+    """Strip personal fields, keep only matchable data."""
+    return {
+        "title": value["title"],
+        "policies": value["policies"],
+    }
+
+
+def prepare_emission(values: list[dict], user_id: str) -> dict:
+    """Package values for emission to the matching API."""
+    return {
+        "user_id": user_id,
+        "values": [anonymize_value(v) for v in values],
+    }
+
+
+# -- Display --
+
 def format_values(values: list[dict]) -> str:
     if not values:
         return "No values captured yet."

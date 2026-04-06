@@ -47,27 +47,39 @@ feel understood, not studied.
 ## Architecture
 
 ```
-skill/
-├── SKILL.md                    # Teaches Hermes the methodology
+skill/                              # Hermes Agent skill (individual)
+├── SKILL.md                        # Teaches Hermes the methodology + alignment
 ├── prompts/
-│   └── extract_value.md        # Value articulation prompt (with policy grading)
+│   └── extract_value.md            # Value articulation prompt (grading + dedup)
 ├── references/
-│   └── LINEAGE.md              # MAI philosophy, papers, concepts, results
+│   └── LINEAGE.md                  # MAI philosophy, papers, concepts, results
 └── scripts/
     ├── __init__.py
-    └── values.py               # Everything: storage, extraction, USER.md
+    └── values.py                   # Extraction, storage, emission, USER.md
+
+matching/                           # Social matching engine (collective)
+├── __init__.py
+├── store.py                        # SQLite: canonical values + user-value links
+├── dedup.py                        # Policy similarity + deduplication
+├── matcher.py                      # Find aligned users by shared values
+└── app.py                          # FastAPI: /emit, /match, /values, /user
+
 tests/
-└── test_values.py              # 25 tests
-install.sh                      # One-command install
+├── test_values.py                  # 37 skill tests
+└── test_matching.py                # 35 matching tests
 ```
 
-One file does it all. `values.py` handles:
-- **Storage**: values as a JSON list in `~/.hermes/values/values.json`
-- **Extraction**: LLM message building + JSON response parsing
-- **USER.md**: marker-delimited section injection (`<!-- values-start/end -->`)
-- **Display**: human-readable value listing
+Two systems, one methodology:
+
+**Skill** — individual. Extracts values from one user's conversation, writes to
+USER.md so Hermes can align to what matters to them.
+
+**Matching engine** — collective. Hermes agents emit anonymized values to a
+shared graph. Users are matched by shared sources of meaning.
 
 ## How It Works
+
+### Individual: extract and align
 
 ```
 User says something meaningful
@@ -76,16 +88,43 @@ User says something meaningful
 SKILL.md teaches Hermes to notice ── 5 signals:
         │                             affect, choice, admiration,
         ▼                             resistance, aspiration
-values extract (with context)
+values extract (with context + existing values for dedup)
         │
         ▼
 extract_value.md ── LLM ──► value or nothing
         │
         ▼
-values.json ◄── append
+values.json ◄── append (deduplicated)
         │
         ▼
 USER.md ◄── write between markers
+        │
+        ▼
+Hermes reads USER.md ── alignment shapes responses
+```
+
+### Collective: emit and match
+
+```
+Hermes A        Hermes B        Hermes C
+values.json     values.json     values.json
+    │               │               │
+    ▼ anonymize     ▼               ▼
+    └───────┐   ┌───┘   ┌──────────┘
+            ▼   ▼       ▼
+       POST /emit (with consent)
+                │
+                ▼
+       Canonical Value Graph  ◄── dedup collapses
+       (SQLite)                   similar values
+                │
+                ▼
+       GET /match/{user_id}
+                │
+                ▼
+       shared: [Quiet Stewardship]
+       alignment: 0.67
+       resonance: 0.31
 ```
 
 ## Install
@@ -116,11 +155,24 @@ acknowledgment
 This section is preserved across updates. Existing USER.md content outside the
 markers is untouched.
 
+## Matching API
+
+```bash
+pip install -r requirements.txt
+uvicorn matching.app:app --reload
+```
+
+Endpoints:
+- `POST /emit` — agent publishes anonymized values
+- `GET /match/{user_id}` — find most aligned users
+- `GET /values` — all canonical values in the graph
+- `GET /user/{user_id}` — a user's canonical values
+
 ## Tests
 
 ```bash
-pip install pytest
-python -m pytest tests/ -v
+pip install -r requirements.txt
+python -m pytest tests/ -v   # 72 tests
 ```
 
 ## Lineage
