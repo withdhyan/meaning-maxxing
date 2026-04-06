@@ -1,78 +1,92 @@
 # Extract a Source of Meaning
 
-You are an expert at recognizing sources of meaning in human conversation.
-You are NOT extracting preferences, goals, moral principles, or emotions.
-You are looking for **sources of meaning**: ways of living that matter deeply
-to this person, expressed as attention policies.
+You are looking for **sources of meaning** in a conversation passage: ways of
+living that matter deeply to this person, expressed as attention policies.
 
-## What you receive
+A source of meaning **opens a space of possibility** — attending to it is
+meaningful in itself, not because it leads to some other outcome.
 
-A passage from a conversation between a user and an AI assistant.
+## What you are NOT extracting
 
-## What you must do
+- **Preferences**: evaluations with no normative weight ("I like dark mode")
+- **Goals**: things to achieve ("I want to be promoted")
+- **Moral principles**: universal rules ("people should be honest")
+- **Emotions**: transient states ("I felt angry")
+- **Norms**: social expectations ("be professional", "don't interrupt")
+- **Internalized norms**: obligations adopted as one's own ("I should exercise")
+- **Ideological commitments**: ideas to convince others of ("everyone should...")
 
-1. **Determine if a genuine source of meaning is present.** Not every passage
-   contains one. If the passage contains only preferences, transient emotions,
-   abstract principles, or task-oriented requests, respond with
-   `{"found": false}`.
+## Instructions
 
-2. **If a source of meaning is present**, articulate it:
+1. If no genuine source of meaning is present, respond `{"found": false}`.
 
-   a. **Title** (2-5 words): A poetic but precise name for this source of
-      meaning. Not a label like "Honesty" — something alive, like
-      "Generative Honesty" or "Quiet Stewardship" or "Fierce Tenderness."
+2. If one is present, articulate it:
 
-   b. **Attention policies** (3-6): Each policy describes a specific kind of
-      thing this person attends to when living from this source of meaning.
-      Format: `CAPITALIZED_PLURAL_NOUN qualifying phrase`.
+   **Title** (2-5 words): Poetic but precise. Not "Honesty" — something like
+   "Generative Honesty" or "Quiet Stewardship" or "Fierce Tenderness."
 
-      Good: `MOMENTS where telling a difficult truth opens a new possibility`
-      Good: `SIGNS that a community is building genuine trust`
-      Good: `WAYS of structuring work that preserve space for surprise`
-      Bad: `Being honest` (not a policy)
-      Bad: `HONESTY` (singular, abstract)
-      Bad: `The importance of connection` (not attending to anything)
+   **Attention policies** (3-6): What this person attends to when living from
+   this source of meaning.
 
-   c. **Description**: A 1-2 sentence first-person micro-story capturing what
-      it feels like to live from this value. Written as if the user is
-      speaking in present continuous tense.
+   For each candidate policy, grade it:
+   - Is it merely about being acceptable or meeting social norms? **Discard.**
+   - Is it merely instrumental — a means to some other end? **Discard.**
+   - Is it genuinely meaningful — attending to it opens possibility in itself? **Keep.**
 
-## What you must NOT do
+   Format: `CAPITALIZED_PLURAL_NOUN qualifying phrase`.
 
-- Do not extract values the user is merely describing in others without
-  personal identification.
-- Do not confuse admiration with aspiration. If the user admires a quality
-  but shows no sign of living from it, do not extract it.
-- Do not over-extract. One genuine value per passage is typical. Finding
-  none is fine and common.
-- Do not invent. Every policy must be grounded in something the user
-  actually said or clearly implied.
+   Good: `MOMENTS where telling a difficult truth opens a new possibility`
+   Good: `SIGNS that a community is building genuine trust`
+   Good: `OPPORTUNITIES for someone to discover their own capacity`
+   Bad: `Being honest` (not an attention policy)
+   Bad: `HONESTY` (singular, abstract)
+   Bad: `The importance of connection` (not attending to anything)
+   Bad: `WAYS to achieve work-life balance` (instrumental, not constitutive)
+
+   **Description**: 1-2 sentence first-person micro-story in present continuous
+   tense capturing what it feels like to live from this source of meaning.
 
 ## Zooming techniques
 
-If the passage starts from a surface-level expression, zoom toward the
-source of meaning underneath:
+If the passage starts at the surface, zoom toward the source of meaning:
 
-- **From a goal** → What way of living makes pursuing this goal meaningful?
-  Not what they want to achieve, but how they want to *be* while pursuing it.
-- **From an emotion** → What does this emotion protect or point toward?
-  Fear protects something threatened. Anger signals something blocked.
-  Joy signals alignment with a source of meaning.
-- **From a moral principle** → What would it look like to live this way
-  not because you *should*, but because it opens up genuine possibility?
-- **From a role model** → What specifically do they attend to in this person?
-  The quality they highlight is often a projection of their own deepest values.
+- **From a goal** → What way of living makes this pursuit meaningful? Not what
+  they want to achieve, but how they want to *be*.
+- **From an emotion** → What does this feeling protect or point toward? Fear
+  protects something threatened. Anger signals something blocked. Joy signals
+  alignment with a source of meaning.
+- **From a principle** → What would it look like to live this way because it
+  opens genuine possibility, not because you *should*?
+- **From admiration** → What specifically do they attend to in this person?
+  The qualities they highlight are often their own deepest sources of meaning.
+- **From adjectives and adverbs** → When someone describes a meaningful moment,
+  the qualitative words reveal what they attend to. "She *gently* held that
+  conversation" — *gently* points toward an attention policy about tenderness.
+  "He was so *deliberate* about including everyone" — *deliberate* points
+  toward intentional inclusion.
 
-## Response format
+## Deduplication
 
-Respond with valid JSON only. No commentary outside the JSON.
+If existing values are listed after the conversation passage, check whether
+the new source of meaning substantially overlaps with any of them. Two values
+overlap if:
 
-If no value found:
+- Someone following one set of policies would attend to the same things as the other
+- A person holding one would feel the other fully captures what they cared about
+
+If there is substantial overlap, respond `{"found": false}`. Only extract
+genuinely **distinct** sources of meaning.
+
+## Response
+
+Valid JSON only. No commentary outside the JSON.
+
 ```json
 {"found": false}
 ```
 
-If a value is found:
+or
+
 ```json
 {
   "found": true,
@@ -83,6 +97,6 @@ If a value is found:
     "WAYS of speaking that make hard truths land as gifts rather than weapons",
     "CHOICES to stay present with discomfort rather than retreating into comfortable silence"
   ],
-  "description": "I'm sitting across from someone I care about, finding the words that are both true and kind, watching something new become possible between us because I didn't look away."
+  "description": "I'm finding the words that are both true and kind, watching something new become possible because I didn't look away."
 }
 ```
