@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      color: #e0e0e0;
+      background: #1a1a2e;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute;
+      inset: 0;
+      background: #333;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .toggle .slider::before {
+      content: "";
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background: #888;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle input:checked + .slider { background: #7c5cbf; }
+    .toggle input:checked + .slider::before {
+      transform: translateX(18px);
+      background: #fff;
+    }
+
+    .modes {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .modes button {
+      flex: 1;
+      padding: 6px 0;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: transparent;
+      color: #aaa;
+      font-size: 12px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .modes button.active {
+      border-color: #7c5cbf;
+      color: #fff;
+      background: rgba(124, 92, 191, 0.15);
+    }
+    .modes button:hover { border-color: #555; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      text-align: center;
+      padding: 8px;
+      background: #16213e;
+      border-radius: 8px;
+    }
+    .stat .n {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .stat .label {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .values-summary {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .values-summary h3 {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .value-tag {
+      display: inline-block;
+      padding: 3px 8px;
+      margin: 2px;
+      background: rgba(124, 92, 191, 0.2);
+      border: 1px solid rgba(124, 92, 191, 0.3);
+      border-radius: 12px;
+      font-size: 11px;
+      color: #c4b5e0;
+    }
+    .no-values {
+      color: #666;
+      font-size: 12px;
+    }
+    .options-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      color: #7c5cbf;
+      text-decoration: none;
+      font-size: 12px;
+    }
+    .options-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Meaning Filter</h1>
+    <label class="toggle">
+      <input type="checkbox" id="enabled" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="modes">
+    <button data-mode="dim" class="active">Dim</button>
+    <button data-mode="hide">Hide</button>
+    <button data-mode="highlight">Highlight</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="n" id="stat-total">0</div>
+      <div class="label">Scored</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="stat-resonant">0</div>
+      <div class="label">Resonant</div>
+    </div>
+    <div class="stat">
+      <div class="n" id="stat-dimmed">0</div>
+      <div class="label">Dimmed</div>
+    </div>
+  </div>
+
+  <div class="values-summary">
+    <h3>Your Values</h3>
+    <div id="values-list"></div>
+  </div>
+
+  <a href="#" id="options-link" class="options-link">Manage values</a>
+
+  <script src="popup.js"></script>
+</body>
+</html>

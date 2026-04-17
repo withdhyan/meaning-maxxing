@@ -1,0 +1,78 @@
+{
+  "manifest_version": 3,
+  "name": "Meaning Filter",
+  "version": "0.1.0",
+  "description": "Filter your newsfeed by what actually matters to you — sources of meaning, not engagement.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://x.com/*",
+    "https://www.reddit.com/*",
+    "https://www.linkedin.com/*",
+    "https://news.ycombinator.com/*",
+    "https://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://x.com/*"
+      ],
+      "js": ["content/platform.js", "content/scorer.js", "content/filter.js", "content/twitter.js"],
+      "css": ["content/filter.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.reddit.com/*"
+      ],
+      "js": ["content/platform.js", "content/scorer.js", "content/filter.js", "content/reddit.js"],
+      "css": ["content/filter.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://news.ycombinator.com/*"
+      ],
+      "js": ["content/platform.js", "content/scorer.js", "content/filter.js", "content/hn.js"],
+      "css": ["content/filter.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/*"
+      ],
+      "js": ["content/platform.js", "content/scorer.js", "content/filter.js", "content/linkedin.js"],
+      "css": ["content/filter.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": ["content/platform.js", "content/scorer.js", "content/filter.js", "content/youtube.js"],
+      "css": ["content/filter.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

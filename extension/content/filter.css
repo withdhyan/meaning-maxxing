@@ -1,0 +1,34 @@
+/* Meaning Filter — visual states for feed items */
+
+/* Dimmed: not aligned with values — reduce visual weight */
+.mf-dim {
+  opacity: 0.35;
+  transition: opacity 0.3s ease;
+}
+
+.mf-dim:hover {
+  opacity: 0.85;
+}
+
+/* Hidden: completely removed from view */
+.mf-hidden {
+  display: none !important;
+}
+
+/* Neutral: no strong signal either way */
+.mf-neutral {
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+
+.mf-neutral:hover {
+  opacity: 1;
+}
+
+/* Resonant: aligned with values — subtle left border highlight */
+.mf-resonant {
+  opacity: 1;
+  border-left: 3px solid #7c5cbf !important;
+  padding-left: 8px;
+  transition: border-color 0.3s ease;
+}
