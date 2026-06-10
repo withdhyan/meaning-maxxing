@@ -13,8 +13,9 @@ choice](https://philarchive.org/rec/EDEVPA).
 
 As you talk to Hermes, the agent notices when something matters to you — a
 difficult choice, something that moved you, a person you admire, a suggestion
-you push back on. It silently extracts **sources of meaning** and writes them
-to your profile.
+you push back on. It quietly extracts **sources of meaning** and writes them
+to your profile, letting you know in one line when something is noted
+(`values show` to review, `values remove <id>` to delete). Quiet, not secret.
 
 A source of meaning is not a preference, a goal, a moral principle, a norm,
 or an ideological commitment. It is a way of living that **opens a space of
@@ -55,17 +56,24 @@ skill/
 │   └── LINEAGE.md              # MAI philosophy, papers, concepts, results
 └── scripts/
     ├── __init__.py
-    └── values.py               # Everything: storage, extraction, USER.md
+    └── values.py               # Everything: storage, extraction, USER.md, CLI
 tests/
-└── test_values.py              # 25 tests
+└── test_values.py              # 53 tests
 install.sh                      # One-command install
 ```
 
 One file does it all. `values.py` handles:
 - **Storage**: values as a JSON list in `~/.hermes/values/values.json`
-- **Extraction**: LLM message building + JSON response parsing
-- **USER.md**: marker-delimited section injection (`<!-- values-start/end -->`)
+  (atomic writes)
+- **Extraction**: LLM message building + validated JSON response parsing —
+  policies must match the attention-policy format, with length and count
+  caps, since this is the choke point between conversation text and USER.md
+- **USER.md**: marker-delimited section injection (`<!-- values-start/end -->`),
+  kept in sync on add *and* remove
 - **Display**: human-readable value listing
+- **CLI**: `extract` / `add` / `show` / `remove` subcommands — the agent is
+  the LLM in the loop: `extract` prints the articulation prompt, the agent
+  produces the JSON, `add` validates and stores it
 
 ## How It Works
 
@@ -76,16 +84,16 @@ User says something meaningful
 SKILL.md teaches Hermes to notice ── 5 signals:
         │                             affect, choice, admiration,
         ▼                             resistance, aspiration
-values extract (with context)
+values extract "<passage>"  ──► prints prompt + existing values
         │
         ▼
-extract_value.md ── LLM ──► value or nothing
+agent articulates (the agent IS the LLM) ──► JSON or {"found": false}
         │
         ▼
-values.json ◄── append
+values add ── validate format ──► values.json ◄── append
         │
         ▼
-USER.md ◄── write between markers
+USER.md ◄── write between markers, one-line notice to user
 ```
 
 ## Install

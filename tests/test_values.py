@@ -19,6 +19,7 @@ from scripts.values import (
     render_values_section,
     write_to_user_md,
     format_values,
+    main,
     SECTION_START,
     SECTION_END,
     MAX_DISPLAY_POLICIES,
@@ -63,6 +64,21 @@ def test_load_corrupt():
     path = _tmp_path()
     path.write_text("{{broken")
     assert load_values(path) == []
+
+
+def test_load_valid_json_but_not_a_list():
+    path = _tmp_path()
+    path.write_text('{"a": 1}')
+    assert load_values(path) == []
+
+
+def test_save_leaves_no_tmp_files():
+    import tempfile as tf
+    with tf.TemporaryDirectory() as d:
+        path = Path(d) / "values.json"
+        save_values([make_value("Alpha", ["WAYS of being"])], path)
+        leftovers = [p for p in Path(d).iterdir() if p.suffix == ".tmp"]
+        assert leftovers == []
 
 
 def test_add_value():
@@ -158,7 +174,8 @@ def test_parse_extraction_garbage():
 
 
 def test_parse_extraction_markdown_wrapped():
-    inner = json.dumps({"found": True, "title": "T", "policies": ["WAYS"]})
+    inner = json.dumps({"found": True, "title": "T",
+                        "policies": ["WAYS of being present"]})
     v = parse_extraction(f"Here:\n```json\n{inner}\n```")
     assert v is not None
     assert v["title"] == "T"
@@ -217,6 +234,24 @@ def test_write_empty_values_noop():
     assert not path.exists()
 
 
+def test_write_empty_clears_existing_section():
+    path = _tmp_path(".md")
+    path.write_text(f"Before\n{SECTION_START}\nOld value\n{SECTION_END}\nAfter\n")
+    write_to_user_md([], user_md_path=path)
+    content = path.read_text()
+    assert "Old value" not in content
+    assert "Before" in content
+    assert "After" in content
+    assert content.count(SECTION_START) == 1
+
+
+def test_write_empty_without_markers_untouched():
+    path = _tmp_path(".md")
+    path.write_text("# Profile\n")
+    write_to_user_md([], user_md_path=path)
+    assert path.read_text() == "# Profile\n"
+
+
 def test_write_sanitizes_markers():
     path = _tmp_path(".md")
     evil_value = make_value(f"Evil {SECTION_START}", ["WAYS"])
@@ -269,6 +304,77 @@ def test_parse_extraction_missing_fields():
     assert parse_extraction(resp) is None
 
 
+def test_parse_extraction_invalid_policy_format_discarded():
+    resp = json.dumps({
+        "found": True,
+        "title": "Test",
+        "policies": ["Being honest", "MOMENTS where truth opens possibility"],
+    })
+    v = parse_extraction(resp)
+    assert v is not None
+    assert v["policies"] == ["MOMENTS where truth opens possibility"]
+
+
+def test_parse_extraction_all_policies_invalid():
+    resp = json.dumps({
+        "found": True,
+        "title": "Test",
+        "policies": ["Being honest", "be kind", "HONESTY"],
+    })
+    assert parse_extraction(resp) is None
+
+
+def test_parse_extraction_overlong_title():
+    resp = json.dumps({
+        "found": True,
+        "title": "x" * 100,
+        "policies": ["WAYS of being present"],
+    })
+    assert parse_extraction(resp) is None
+
+
+def test_parse_extraction_overlong_policy_discarded():
+    resp = json.dumps({
+        "found": True,
+        "title": "Test",
+        "policies": ["MOMENTS " + "x" * 300, "SIGNS of genuine trust"],
+    })
+    v = parse_extraction(resp)
+    assert v is not None
+    assert v["policies"] == ["SIGNS of genuine trust"]
+
+
+def test_parse_extraction_caps_policy_count():
+    policies = [f"MOMENTS of meaning number {i}" for i in range(10)]
+    resp = json.dumps({"found": True, "title": "Test", "policies": policies})
+    v = parse_extraction(resp)
+    assert v is not None
+    assert len(v["policies"]) == 6
+
+
+def test_parse_extraction_source_context():
+    resp = json.dumps({
+        "found": True,
+        "title": "Test",
+        "policies": ["WAYS of being present"],
+    })
+    v = parse_extraction(resp, source_context="the user said a thing")
+    assert v is not None
+    assert v["source_context"] == "the user said a thing"
+
+
+def test_parse_extraction_non_string_description():
+    resp = json.dumps({
+        "found": True,
+        "title": "Test",
+        "policies": ["WAYS of being present"],
+        "description": {"not": "a string"},
+    })
+    v = parse_extraction(resp)
+    assert v is not None
+    assert v["description"] == ""
+
+
 # -- Edge cases: storage --
 
 def test_add_value_multiple():
@@ -302,6 +408,73 @@ def test_remove_does_not_save_when_nothing_removed():
     # File should not have been rewritten
     mtime_after = path.stat().st_mtime_ns
     assert mtime_before == mtime_after
+
+
+# -- CLI --
+
+def _value_json(title="Quiet Stewardship"):
+    return json.dumps({
+        "found": True,
+        "title": title,
+        "policies": ["MOMENTS where care is given without being asked"],
+    })
+
+
+def test_cli_show_empty(capsys):
+    rc = main(["show"], values_path=_tmp_path())
+    assert rc == 0
+    assert "No values" in capsys.readouterr().out
+
+
+def test_cli_add_show_remove(monkeypatch, capsys):
+    import io
+    values_path = _tmp_path()
+    user_md_path = _tmp_path(".md")
+
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_value_json()))
+    rc = main(["add", "--context", "the passage"],
+              values_path=values_path, user_md_path=user_md_path)
+    assert rc == 0
+    assert "Noted: Quiet Stewardship" in capsys.readouterr().out
+    assert "Quiet Stewardship" in user_md_path.read_text()
+
+    values = load_values(values_path)
+    assert len(values) == 1
+    assert values[0]["source_context"] == "the passage"
+
+    rc = main(["show"], values_path=values_path)
+    assert rc == 0
+    assert "Quiet Stewardship" in capsys.readouterr().out
+
+    rc = main(["remove", values[0]["id"]],
+              values_path=values_path, user_md_path=user_md_path)
+    assert rc == 0
+    assert load_values(values_path) == []
+    assert "Quiet Stewardship" not in user_md_path.read_text()
+
+
+def test_cli_add_invalid_returns_error(monkeypatch, capsys):
+    import io
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"found": false}'))
+    rc = main(["add"], values_path=_tmp_path(), user_md_path=_tmp_path(".md"))
+    assert rc == 1
+    assert "No value extracted" in capsys.readouterr().out
+
+
+def test_cli_remove_nonexistent_returns_error(capsys):
+    values_path = _tmp_path()
+    save_values([], values_path)
+    rc = main(["remove", "nope"], values_path=values_path,
+              user_md_path=_tmp_path(".md"))
+    assert rc == 1
+
+
+def test_cli_extract_prints_prompt(capsys):
+    rc = main(["extract", "User said something."], values_path=_tmp_path())
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "source of meaning" in out.lower()
+    assert "User said something." in out
 
 
 # -- Edge cases: render --

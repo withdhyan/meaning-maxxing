@@ -34,11 +34,11 @@ if [ -d "${SCRIPT_DIR}/skill" ]; then
     echo "Installing from local clone: ${SOURCE}"
 else
     # Clone from remote
-    TMPDIR=$(mktemp -d)
-    trap "rm -rf ${TMPDIR}" EXIT
+    WORKDIR=$(mktemp -d)
+    trap 'rm -rf "${WORKDIR}"' EXIT
     echo "Cloning from ${REPO_URL}..."
-    git clone --depth 1 --quiet "${REPO_URL}" "${TMPDIR}/meaning-maxxing"
-    SOURCE="${TMPDIR}/meaning-maxxing/skill"
+    git clone --depth 1 --quiet "${REPO_URL}" "${WORKDIR}/meaning-maxxing"
+    SOURCE="${WORKDIR}/meaning-maxxing/skill"
 fi
 
 # Remove old installation if present
@@ -62,4 +62,5 @@ echo "the agent will begin noticing what matters to you."
 echo ""
 echo "Commands:"
 echo "  /skills              — verify the skill appears"
-echo "  values show          — view your captured values"
+echo "  python ${TARGET}/scripts/values.py show"
+echo "                       — view your captured values"

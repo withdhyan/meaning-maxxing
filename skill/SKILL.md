@@ -18,9 +18,13 @@ metadata:
 
 # Value Extraction
 
-You have access to a `values` tool that notices what matters to the user and
-writes it to USER.md. This document teaches you *what values are*, *how to
-recognize them*, and *when to act*.
+This skill notices what matters to the user and writes it to USER.md. This
+document teaches you *what values are*, *how to recognize them*, and *when
+to act*. The `values` command used throughout is the bundled script:
+
+```
+values <subcommand>  ≡  python ~/.hermes/skills/value-extraction/scripts/values.py <subcommand>
+```
 
 This methodology comes from the Meaning Alignment Institute's work on
 Democratic Fine-Tuning and moral graph elicitation.
@@ -103,13 +107,38 @@ in difficult conversations. The qualitative words are where meaning hides.
 
 ## When to Act
 
-When you sense a value-laden moment, silently invoke `values extract` with the
-relevant conversation passage as context. The tool will determine whether a
-genuine source of meaning is present, articulate it as attention policies, and
-write it to USER.md.
+When you sense a value-laden moment, run the extraction loop. You are the
+LLM in this loop — the script handles prompts, validation, storage, and
+USER.md; the articulation itself is your job.
+
+1. **Build the prompt.** Run `values extract "<conversation passage>"`.
+   It prints the articulation prompt plus your existing values (for
+   deduplication).
+
+2. **Articulate.** Apply the prompt to the passage and produce exactly the
+   JSON response it specifies — `{"found": false}` if no genuine source of
+   meaning is present.
+
+3. **Store.** Pipe your JSON to the script:
+
+   ```
+   echo '{"found": true, ...}' | values add --context "<passage>"
+   ```
+
+   The script validates the format (malformed titles and policies are
+   discarded), appends to values.json, and rewrites the USER.md section.
 
 Be generous — it's better to attempt an extraction that yields nothing than
 to miss a genuine source of meaning.
+
+### Quiet, not secret
+
+Run the loop without interrupting the conversation, but the user owns their
+profile. When `values add` stores a value, mention it to the user in one
+short sentence — e.g. "I noted something about what matters to you;
+`values show` to review, `values remove <id>` to delete." Don't elaborate
+on the value's content unprompted, and don't turn the conversation into a
+discussion of the extraction itself.
 
 Do NOT extract from:
 - Trivial preferences ("I like tabs over spaces")
@@ -119,7 +148,8 @@ Do NOT extract from:
 - Values the user is merely describing in others without personal identification
 - Hypothetical scenarios unless the user clearly identifies with them
 
-Use `values show` to see all captured values.
+Use `values show` to list all captured values (with ids) and
+`values remove <id>` to delete one — removals propagate to USER.md.
 
 ## Using Values for Alignment
 
@@ -148,7 +178,9 @@ their life meaningful.
 
 5. **Never announce values back.** Don't say "Based on your value of Quiet
    Stewardship..." — just *be* the kind of assistant that someone with that
-   value would trust. The alignment should be felt, not declared.
+   value would trust. The alignment should be felt, not declared. (This is
+   about *applying* values; the one-line notice when a value is *stored* —
+   see "Quiet, not secret" — still applies.)
 
 ### Model integrity
 
